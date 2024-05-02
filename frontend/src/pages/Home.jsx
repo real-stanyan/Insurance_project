@@ -1,20 +1,62 @@
-import { GoogleMap, LoadScript } from "@react-google-maps/api";
+import { useEffect, useState } from "react";
 
-const containerStyle = {
-  width: "500px",
-  height: "300px",
-};
-
-const center = {
-  lat: -34.88324506216066,
-  lng: 138.59051614470803,
-};
+import Map from "../components/Map";
 
 export default function Home() {
+  const [weather, setWeather] = useState({});
+
+  useEffect(() => {
+    fetchWeather();
+  }, []);
+
+  const fetchWeather = async () => {
+    const nowTime = new Date().getTime();
+    console.log(nowTime);
+    const res = await fetch(import.meta.env.VITE_OPEN_WEATHER_API);
+    const data = await res.json();
+
+    const sunriseTime = data.current.sunrise * 1000;
+    const sunsetTime = data.current.sunset * 1000;
+
+    const isDay = nowTime >= sunriseTime && nowTime <= sunsetTime;
+
+    // Convert temperature from Kelvin to Celsius
+    const tempC = data.current.temp - 273.15;
+
+    // Temperature Score: Assuming ideal range is 15 to 25°C
+    const tempScore = 100 - Math.min(Math.abs(tempC - 20), 20) * 5;
+
+    // UV Index Score: Assuming lower is better
+    const uviScore = 100 - data.current.uvi * 12.5; // Scale UV index so that UV index of 8 gives 0 score
+
+    // Visibility Score: Assuming visibility of 10000m or more is ideal
+    const visibilityScore = Math.min(data.current.visibility / 100, 100);
+
+    // Humidity Score: Assuming lower humidity is better
+    const humidityScore = 100 - data.current.humidity;
+
+    // Calculate average score
+    const suitabilityScore =
+      (tempScore + uviScore + visibilityScore + humidityScore) / 4;
+
+    setWeather({
+      ...data.current,
+      uvi_val: (200 - (data.current.uvi / 11) * 200).toString(),
+      temp_val: (200 - ((data.current.temp - 273.15) / 60) * 200)
+        .toFixed(1)
+        .toString(),
+      isDay: isDay,
+      suitabilityScore: suitabilityScore.toFixed(2),
+      timeZone: data.timezone,
+    });
+  };
+
+  console.log(weather);
+
   return (
     <>
       {/* 1 */}
-      <div className="w-[100vw] h-[90vh] flex flex-col justify-center items-center bg-home_bg bg-cover p-10 text-[black]">
+      <div className="max-w-[100vw] h-[90vh] flex flex-col justify-center items-center bg-home_bg bg-cover p-10 text-[black] overflow-hidden">
         <h1 className="text-[4vw] font-black">Welcome</h1>
         <p className="w-[70%] text-[1vw] font-medium">
           Harnessing advanced AI technology, we redefine the insurance
@@ -75,6 +117,60 @@ export default function Home() {
         </div>
       </div>
       {/* 3 */}
+      <div
+        style={{
+          backgroundImage: weather.isDay
+            ? "url('/images/day_time.webp')"
+            : "url('/images/night_time.webp')",
+          backgroundSize: "cover", // 确保图片覆盖整个区域
+          backgroundPosition: "center", // 图片居中显示
+          backgroundRepeat: "no-repeat", // 不重复显示图片
+        }}
+        className="w-[100vw] min-h-[70vh] flex items-center justify-evenly relative"
+      >
+        <div className="text-white text-center text-4xl flex flex-col">
+          <h1 className="font-black overflow-hidden mb-3">Suitability Score</h1>
+          <p className="overflow-hidden font-light text-5xl">
+            {weather.suitabilityScore}
+          </p>
+        </div>
+        <div className="absolute text-white bottom-3 left-[35vw] w-[30vw] text-center text-3xl font-semibold">
+          {weather.timeZone}
+        </div>
+        {/* temp */}
+        <div className="absolute left-10 bottom-5">
+          <div className="w-[60px] h-[260px] px-[10px]">
+            <div className="w-[30px] h-[250px] bg-gradient-to-t from-blue-500 via-light-blue-500 via-green-400 yellow-400 orange-400 to-red-500 rounded-full border border-white"></div>
+            <div
+              className={`w-[50px] h-[50px] bg-white rounded-full absolute left-0 z-10`}
+              style={{ top: `${parseFloat(weather.temp_val)}px` }}
+            >
+              <p className="flex justify-center items-center w-full h-full text-sm font-bold text-center">
+                Temp:
+                <br />
+                {(weather.temp - 273.15).toFixed(1)}°C
+              </p>
+            </div>
+          </div>
+        </div>
+        {/* uvi */}
+        <div className="absolute right-10 bottom-5">
+          <div className="w-[60px] h-[260px] px-[10px]">
+            <div className="w-[30px] h-[250px] bg-gradient-to-t from-green-400 via-yellow-300 orange-400 via-red-500 to-purple-600 rounded-full border border-white"></div>
+            <div
+              className={`w-[50px] h-[50px] bg-white rounded-full absolute left-0 z-10`}
+              style={{ top: `${parseFloat(weather.uvi_val)}px` }}
+            >
+              <p className="flex justify-center items-center w-full h-full text-sm font-bold text-center">
+                uvi.
+                <br />
+                {weather.uvi}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* 4 */}
       <div className="flex justify-around items-center w-[100vw] min-h-[50vh] my-10">
         <div className="w-[50%]">
           <h1 className="text-3xl font-semibold mb-4">Company</h1>
@@ -90,19 +186,7 @@ export default function Home() {
             insurance transaction.
           </p>
         </div>
-        <div>
-          <LoadScript
-            googleMapsApiKey="AIzaSyBzhFxMyry53A027xF9edMUyTuBgNoO378" // 替换成你的API Key
-          >
-            <GoogleMap
-              mapContainerStyle={containerStyle}
-              center={center}
-              zoom={10}
-            >
-              {/* 子组件，如标记（Markers）和信息窗（Info Windows） */}
-            </GoogleMap>
-          </LoadScript>
-        </div>
+        <Map />
       </div>
     </>
   );

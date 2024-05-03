@@ -129,6 +129,40 @@ export default function Home() {
           </h1>
           {/* chats area */}
           <div className="px-2 py-4">
+            {messages.length === 0 && (
+              <div className="text-[30px] text-[white] text-center">
+                <p>
+                  Chat with me how to <br /> waste your money better!
+                </p>
+                {/* 1 */}
+                <div
+                  onClick={() => {
+                    setUserInput("Give me some advice on buying insurance");
+                  }}
+                  className="my-2 border-2 border-[#494949] rounded-xl text-[20px] cursor-pointer hover:bg-white hover:text-[black]"
+                >
+                  Give me some advice on buying insurance
+                </div>
+                {/* 2 */}
+                <div
+                  onClick={() => {
+                    setUserInput("What is the claims process?");
+                  }}
+                  className="my-2 border-2 border-[#494949] rounded-xl text-[20px] cursor-pointer hover:bg-white hover:text-[black]"
+                >
+                  What is the claims process?
+                </div>
+                {/* 3 */}
+                <div
+                  onClick={() => {
+                    setUserInput("How do I buy new car insurance?");
+                  }}
+                  className="my-2 border-2 border-[#494949] rounded-xl text-[20px] cursor-pointer hover:bg-white hover:text-[black]"
+                >
+                  How do I buy new car insurance?
+                </div>
+              </div>
+            )}
             {messages.map((msg, i) =>
               msg.role == "user" ? (
                 // user

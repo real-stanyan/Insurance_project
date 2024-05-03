@@ -1,9 +1,36 @@
 import { useEffect, useState } from "react";
+import axios from "axios";
 
-import Map from "../components/Map";
+import { GoogleMap, LoadScript } from "@react-google-maps/api";
+
+import { IoChatboxEllipses } from "react-icons/io5";
+import { IoIosCloseCircleOutline } from "react-icons/io";
+import { IoSendSharp } from "react-icons/io5";
+
+const containerStyle = {
+  width: "400px",
+  height: "400px",
+};
+
+const center = {
+  lat: -34.88324506216066,
+  lng: 138.59051614470803,
+};
 
 export default function Home() {
+  const [inputValue, setInputValue] = useState("");
   const [weather, setWeather] = useState({});
+  const [chatSwitch, setChatSwitch] = useState(false);
+  const [messages, setMessages] = useState([
+    // { role: "user", content: "sda" },
+    // { role: "assistant", content: "sda" },
+    // { role: "user", content: "sda" },
+    // { role: "assistant", content: "sda" },
+    // { role: "user", content: "sda" },
+  ]);
+  const [userInput, setUserInput] = useState("");
+
+  console.log(messages);
 
   useEffect(() => {
     fetchWeather();
@@ -50,11 +77,117 @@ export default function Home() {
       timeZone: data.timezone,
     });
   };
+  const sendMessage = async () => {
+    if (!userInput.trim()) return;
+
+    const userMessage = { role: "user", content: userInput };
+    setMessages([...messages, userMessage]); // Update local state to include new user message
+    setUserInput("");
+
+    try {
+      const response = await axios.post(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          model: "gpt-3.5-turbo",
+          messages: [...messages, userMessage], // Include the updated conversation history
+          max_tokens: 150,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_OPENAI_KEY}`,
+          },
+        }
+      );
+
+      const botResponse = {
+        role: "assistant",
+        content: response.data.choices[0].message.content,
+      };
+
+      setMessages([...messages, userMessage, botResponse]); // Update the messages with both the new user and bot responses
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
+  };
 
   console.log(weather);
 
   return (
     <>
+      {/* chat box */}
+      {chatSwitch ? (
+        <div className=" flex flex-col w-[500px] h-[500px] fixed bottom-5 right-10 bg-[#212121] z-50 border-4 border-[#494949] rounded-xl transition-all">
+          <IoIosCloseCircleOutline
+            className="text-[white] text-[40px] absolute top-2 right-2"
+            onClick={() => {
+              setChatSwitch(false);
+            }}
+          />
+          <h1 className="w-[500px] min-h-[50px] text-center text-[20px] text-white font-bold mt-[10px]">
+            Chat with us
+          </h1>
+          {/* chats area */}
+          <div className="px-2 py-4">
+            {messages.map((msg, i) =>
+              msg.role == "user" ? (
+                // user
+                <div
+                  key={i}
+                  className="text-[white] flex items-center justify-self-end justify-end"
+                >
+                  <p className="p-2 border-2 border-[#494949] rounded-xl">
+                    {msg.content}
+                  </p>
+                  <img
+                    src="/images/user.png"
+                    alt=""
+                    className="w-[50px] h-[50px]"
+                  />
+                </div>
+              ) : (
+                // ai
+                <div
+                  key={i}
+                  className="text-[white] flex items-center justify-start"
+                >
+                  <img
+                    src="/images/chat_ai.png"
+                    alt=""
+                    className="min-w-[50px] min-h-[50px]"
+                  />
+                  <p className="p-2 border-2 border-[#494949] rounded-xl">
+                    {msg.content}
+                  </p>
+                </div>
+              )
+            )}
+          </div>
+          {/* input area */}
+          <div className="w-[500px] flex items-center mt-auto">
+            <input
+              type="text"
+              className="w-full h-[50px] p-[10px] text-[20px]"
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+            />
+            <IoSendSharp
+              className="ml-[-35px] text-[20px]"
+              onClick={sendMessage}
+            />
+          </div>
+        </div>
+      ) : (
+        <div
+          onClick={() => {
+            setChatSwitch(true);
+          }}
+          className="w-[100px] h-[100px] bg-[#0050e6] rounded-full fixed bottom-5 right-10 z-50 flex justify-center items-center hover:w-[120px] hover:h-[120px] transition-all"
+        >
+          <IoChatboxEllipses className="text-[white] text-[50px]" />
+        </div>
+      )}
+
       {/* 1 */}
       <div className="max-w-[100vw] h-[90vh] flex flex-col justify-center items-center bg-home_bg bg-cover p-10 text-[black] overflow-hidden">
         <h1 className="text-[4vw] font-black">Welcome</h1>
@@ -186,7 +319,16 @@ export default function Home() {
             insurance transaction.
           </p>
         </div>
-        <Map />
+        <LoadScript googleMapsApiKey="AIzaSyBzhFxMyry53A027xF9edMUyTuBgNoO378">
+          <GoogleMap
+            mapContainerStyle={containerStyle}
+            center={center}
+            zoom={10}
+            loading="async"
+          >
+            {/* 子组件如标记等 */}
+          </GoogleMap>
+        </LoadScript>
       </div>
     </>
   );

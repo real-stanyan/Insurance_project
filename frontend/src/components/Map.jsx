@@ -1,73 +1,149 @@
-import React, { useState, useEffect, useRef } from "react";
-import { GoogleMap, useLoadScript, Marker } from "@react-google-maps/api";
+import React, { useEffect, useRef } from "react";
+import { Loader } from "@googlemaps/js-api-loader";
 
-const mapContainerStyle = {
-  height: "400px",
-  width: "800px",
-};
-const center = {
-  lat: 40.712776, // 示例中心位置，纽约市
-  lng: -74.005974,
-};
-// const options = {
-//   disableDefaultUI: true,
-//   zoomControl: true,
-// };
+const Map = ({
+  userLatLng,
+  targetLatLng,
+  lockLatLng,
+  handleSetTargetStation,
+}) => {
+  const mapRef = useRef < HTMLDivElement > null;
+  // 定义点击处理函数
 
-const libraries = ["places"];
+  window.global_fillHere = function (storeId) {
+    handleSetTargetStation(storeId);
+  };
 
-const Map = () => {
-  const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAP_API,
-    libraries,
-    loadAsync: true, // 确保此属性设置为true，以异步加载
-  });
-
-  const mapRef = useRef();
-  const [markers, setMarkers] = useState([]);
+  window.global_goHere = function (Lat, Lng) {
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${Lat},${Lng}`;
+    window.open(url, "_blank");
+  };
 
   useEffect(() => {
-    if (!isLoaded || !mapRef.current) return;
+    const loader = new Loader({
+      apiKey: `${process.env.NEXT_PUBLIC_GOOGLE_MAP_API}`,
+      version: "weekly",
+    });
 
-    const service = new window.google.maps.places.PlacesService(mapRef.current);
-    const request = {
-      location: new google.maps.LatLng(center.lat, center.lng),
-      radius: "5000",
-      type: ["hospital"],
-    };
+    loader.load().then(() => {
+      if (mapRef.current) {
+        // 设置地图以用户位置为中心
+        const userLocation = new google.maps.LatLng(
+          userLatLng.latitude,
+          userLatLng.longitude
+        );
+        const map = new google.maps.Map(mapRef.current, {
+          center: userLocation,
+          zoom: 12,
+        });
 
-    service.nearbySearch(request, (results, status) => {
-      if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-        results.forEach((place) => {
-          new google.maps.marker.AdvancedMarkerElement({
-            position: place.geometry.location,
-            map: mapRef.current,
-            title: place.name,
+        // 添加用户位置标记
+        const userMarker = new google.maps.Marker({
+          map: map,
+          position: userLocation,
+          icon: {
+            url: "/images/userLatLng.png",
+            scaledSize: new google.maps.Size(40, 40),
+          },
+        });
+
+        // 用户位置信息窗口
+        const userInfoWindow = new google.maps.InfoWindow({
+          content: "<div>用户位置</div>", // 自定义内容
+        });
+
+        userMarker.addListener("click", () => {
+          userInfoWindow.open(map, userMarker);
+        });
+
+        // 添加目标位置标记
+        targetLatLng?.forEach((store) => {
+          const marker = new google.maps.Marker({
+            map: map,
+            position: new google.maps.LatLng(
+              store.location.y,
+              store.location.x
+            ),
+            icon: {
+              url: "/images/targetLatLng.png",
+              scaledSize: new google.maps.Size(40, 40),
+            },
+          });
+          const infoWindow = new google.maps.InfoWindow({
+            content: `
+                    <div style="display: flex; flex-direction: column; width: 6vw;">
+                      <h1 style="white-space: nowrap;">${store.name}</h1>
+                      <div style="width: 100%;">
+                        ${
+                          store.prices.E10
+                            ? `<h1 style="display: flex; justify-content: space-between;">${store.prices.E10.type}<span>${store.prices.E10.amount}</span></h1>`
+                            : ""
+                        }
+                        ${
+                          store.prices.U91
+                            ? `<h1 style="display: flex; justify-content: space-between;">${store.prices.U91.type}<span>${store.prices.U91.amount}</span></h1>`
+                            : ""
+                        }
+                        ${
+                          store.prices.U95
+                            ? `<h1 style="display: flex; justify-content: space-between;">${store.prices.U95.type}<span>${store.prices.U95.amount}</span></h1>`
+                            : ""
+                        }
+                        ${
+                          store.prices.U98
+                            ? `<h1 style="display: flex; justify-content: space-between;">${store.prices.U98.type}<span>${store.prices.U98.amount}</span></h1>`
+                            : ""
+                        }
+                        ${
+                          store.prices.PremDSL
+                            ? `<h1 style="display: flex; justify-content: space-between;">${store.prices.PremDSL.type}<span>${store.prices.PremDSL.amount}</span></h1>`
+                            : ""
+                        }
+                        ${
+                          store.prices.LPG
+                            ? `<h1 style="display: flex; justify-content: space-between;">${store.prices.LPG.type}<span>${store.prices.LPG.amount}</span></h1>`
+                            : ""
+                        }
+                      </div>
+                      <div style="display: flex; justify-content: space-between;">
+                        <div style="padding: 0.3vw; border: 1px solid black;" onclick="window.global_fillHere('${
+                          store.id
+                        }')">
+                          fill here
+                        </div>
+                        <div style="padding: 0.3vw; border: 1px solid black;" onclick="window.global_goHere('${
+                          store.location.y
+                        }','${store.location.x}')">
+                          go here
+                        </div>
+                      </div>
+                    </div>`,
+          });
+
+          marker.addListener("click", () => {
+            infoWindow.open(map, marker);
+          });
+        });
+
+        // 添加锁定位置标记（如果存在）
+        lockLatLng?.forEach((store) => {
+          new google.maps.Marker({
+            map: map,
+            position: new google.maps.LatLng(
+              store.location.y,
+              store.location.x
+            ),
+            icon: {
+              url: "/images/lockLatLng.png",
+              scaledSize: new google.maps.Size(40, 40),
+            },
           });
         });
       }
     });
-  }, [isLoaded]);
+  }, [userLatLng, targetLatLng, lockLatLng]); // 依赖项包括所有坐标
 
-  if (loadError) return <div>Error loading maps</div>;
-  if (!isLoaded) return <div>Loading Maps</div>;
-
-  return (
-    <GoogleMap
-      mapContainerStyle={mapContainerStyle}
-      center={center}
-      zoom={12}
-      //   options={options}
-      onLoad={(map) => (mapRef.current = map)}
-    >
-      {markers.map((marker) => (
-        <Marker
-          key={marker.id}
-          position={{ lat: marker.lat, lng: marker.lng }}
-        />
-      ))}
-    </GoogleMap>
-  );
+  return <div style={{ width: "100%", height: "100%" }} ref={mapRef} />;
 };
 
 export default Map;

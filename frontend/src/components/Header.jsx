@@ -1,5 +1,3 @@
-import OAuth from "./OAuth";
-
 export default function Header() {
   return (
     <div className="flex items-center justify-between bg-[#0d6efd] w-[100vw] h-[10vh] px-10">
@@ -19,7 +17,6 @@ export default function Header() {
           About
         </p>
       </div>
-      <OAuth />
     </div>
   );
 }
